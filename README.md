@@ -72,13 +72,336 @@ Extract 768-dimensional deep feature representations from raw MRI images using p
    - Traverses `Training` and `Testing` directories.
    - Converts images to tensors and extracts ViT feature embeddings.
    - Automatically saves features to `features_MRIbrain.npz` for caching.
+```python
+import os
+import numpy as np
+from PIL import Image
+from tqdm import tqdm
+import time
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+from torchvision import models
+from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import accuracy_score
+import timm
+st = time.time()
+# --------- Step 1: Setup paths ---------
+BASE_DIR = "datamri"
+train_dir = os.path.join(BASE_DIR, "Training")
+test_dir  = os.path.join(BASE_DIR, "Testing")
+print("Train path:", train_dir)
+print("Test path:", test_dir)
+# Get class names from directory
+categories = sorted(os.listdir(train_dir))
+print("Categories:", categories)
+# Get image paths and labels (train)
+train_paths, y_train = [], []
+for idx, category in enumerate(categories):
+    cat_path = os.path.join(train_dir, category)
+    for filename in os.listdir(cat_path):
+        if filename.lower().endswith(('.jpg', '.png', '.jpeg')):
+            train_paths.append(os.path.join(cat_path, filename))
+            y_train.append(idx)
+# Get image paths and labels (test)
+test_paths, y_test = [], []
+for idx, category in enumerate(categories):
+    cat_path = os.path.join(test_dir, category)
+    for filename in os.listdir(cat_path):
+        if filename.lower().endswith(('.jpg', '.png', '.jpeg')):
+            test_paths.append(os.path.join(cat_path, filename))
+            y_test.append(idx)
+print(f"Train images: {len(train_paths)}, Test images: {len(test_paths)}")
+# --------- Step 2: Load ViT ---------
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+## ViT
+vit = timm.create_model(
+    "vit_base_patch16_224",
+    pretrained=True,
+    num_classes=0 )
+vit = vit.to(device)
+if torch.cuda.device_count() > 1:
+    vit = nn.DataParallel(vit)
+vit.eval()
+# --------- Step 3: Transform ---------
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std =[0.229, 0.224, 0.225])])
+# --------- Step 4: Feature extraction ---------
+def extract_features(image_paths):
+    features = []
+    for path in tqdm(image_paths, desc="Extracting ViT features"):
+        try:
+            img = Image.open(path).convert("RGB")
+            img_tensor = transform(img).unsqueeze(0).to(device)
+            with torch.no_grad():
+                feat = vit(img_tensor)
+                feat = feat.squeeze().cpu().numpy()
+            features.append(feat)
+        except Exception as e:
+            print(f"Error processing {path}: {e}")
+    return np.array(features)
+features_train = extract_features(train_paths)
+features_test  = extract_features(test_paths)
+end = time.time()
+print(features_train.shape)
+print(features_test.shape)
+print("Total Time:", end - st)
+np.savez('ViT_features_MRIbrain.npz',
+         features_train=features_train,
+         features_test=features_test,
+         y_train=np.array(y_train),
+         y_test=np.array(y_test))
+print("Save file ViT_features_MRIbrain.npz")
+```
 
 2. **Run Cell 3: GA (Parallel) with K-Fold Cross-Validation**:
    - Selects the optimal subset of extracted features using parallel fitness evaluations with K-Fold Cross-Validation.
    - Fits a Gaussian Naive Bayes classifier on the selected training features.
+```python
+import time
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.metrics import accuracy_score
+from joblib import Parallel, delayed
+st = time.time()
+# --------- Step 4: Optimized Genetic Algorithm (Parallel) ---------
+def genetic_algorithm(X,y,pop_size=100,generations=1000, 
+    mutation_rate=0.01, n_jobs=-1,random_state=42):
+    np.random.seed(random_state)
+    random.seed(random_state)
+    n_samples, n_features = X.shape
+    # Initialize random boolean population matrix (pop_size, n_features)
+    population = np.random.rand(pop_size, n_features) < 0.5
+    best_history = []
+    avg_history = []
+    feature_count_history = []
+    # Local fitness function for parallel dispatch
+    def evaluate_individual(individual):
+        if not np.any(individual):
+            return 0.0
+        X_subset = X[:, individual]
+        clf = GaussianNB()
+        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+        # Fast cross-validation
+        scores = cross_val_score(clf, X_subset, y, cv=cv, scoring='accuracy', n_jobs=1)
+        return float(scores.mean())
+    best_individual_overall = None
+    best_fitness_overall = -1.0
+    # Cache to avoid re-evaluating duplicate individuals
+    fitness_cache = {}
+    # Parallel runner instance (reuses process pool across iterations)
+    with Parallel(n_jobs=n_jobs, backend='loky') as parallel:
+        for gen in range(generations):
+            # Determine which individuals need evaluation vs cache lookup
+            eval_indices = []
+            tasks = []
+            scores = np.zeros(pop_size, dtype=float)
+            for idx, ind in enumerate(population):
+                key = ind.tobytes()
+                if key in fitness_cache:
+                    scores[idx] = fitness_cache[key]
+                else:
+                    eval_indices.append(idx)
+                    tasks.append(delayed(evaluate_individual)(ind))
+            # Compute only unseen individuals in parallel
+            if tasks:
+                computed_scores = parallel(tasks)
+                for idx, score in zip(eval_indices, computed_scores):
+                    key = population[idx].tobytes()
+                    fitness_cache[key] = score
+                    scores[idx] = score
+            # Best and average scores for current generation
+            best_idx = np.argmax(scores)
+            best_ind = population[best_idx].copy()
+            best_score = scores[best_idx]
+            avg_score = np.mean(scores)
+            best_history.append(best_score)
+            avg_history.append(avg_score)
+            feature_count_history.append(np.sum(best_ind))
+            # Update overall best
+            if best_score > best_fitness_overall:
+                best_fitness_overall = best_score
+                best_individual_overall = best_ind.copy()
+            print(
+                f"Generation {gen+1:03d}/{generations} | "
+                f"Best CV: {best_score:.4f} | "
+                f"Avg CV: {avg_score:.4f} | "
+                f"Features: {np.sum(best_ind)}/{n_features}")
+            # --- Selection (Top 50%) ---
+            sorted_indices = np.argsort(scores)[::-1]
+            survivors = population[sorted_indices[: pop_size // 2]]
+            # --- Crossover & Mutation (Vectorized) ---
+            new_population = list(survivors)
+            while len(new_population) < pop_size:
+                # Randomly pick two parents
+                p1_idx, p2_idx = np.random.choice(len(survivors), size=2, replace=False)
+                p1, p2 = survivors[p1_idx], survivors[p2_idx]
+                # Single-point Crossover
+                cp = np.random.randint(1, n_features)
+                child = np.concatenate([p1[:cp], p2[cp:]])
+                # Vectorized Mutation
+                mutation_mask = np.random.rand(n_features) < mutation_rate
+                child = np.logical_xor(child, mutation_mask)
+                new_population.append(child)
+            population = np.array(new_population, dtype=bool)
+    return best_individual_overall, best_fitness_overall, best_history, avg_history, feature_count_history
+# --------- Step 5: Running GA and Final Classifier ---------
+# (Ensure features_train, y_train, features_test, y_test are defined prior to running)
+if __name__ == '__main__':
+    # Sample Mock Data (Replace with your actual features/labels)
+    print("Running Parallel GA...")
+    best_individual, best_fitness, best_history, avg_history, feature_count_history = genetic_algorithm(
+        features_train, y_train, pop_size=100, generations=1000, mutation_rate=0.01, n_jobs=-1)
+    # Train final model on selected features
+    clf = GaussianNB()
+    clf.fit(features_train[:, best_individual], y_train)
+    y_pred = clf.predict(features_test[:, best_individual])
+    test_acc = accuracy_score(y_test, y_pred)
+    print(f"\n Best CV Accuracy from GA: {best_fitness:.4f}")
+    print(f" Test Accuracy: {test_acc:.4f}")
+    print(f" Number of selected features: {np.sum(best_individual)} / {features_train.shape[1]}")
+    end = time.time()
+    print(f"Total Time: {end - st:.2f} seconds")
+    # --------- Step 6: Plot GA Convergence ---------
+    generations_range = range(1, len(best_history) + 1)
+    plt.figure(figsize=(8, 5))
+    plt.plot(generations_range, best_history, marker='o', markersize=3, linewidth=2, label='Best Fitness')
+    plt.plot(generations_range, avg_history, marker='s', markersize=3, linewidth=2, label='Average Fitness')
+    plt.title("GA Convergence Curve")
+    plt.xlabel("Generation")
+    plt.ylabel("Objective Value (Accuracy)")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("GA_convergence_curve_MRI.png", dpi=300, bbox_inches='tight')
+    plt.show()
+    # --------- Step 7: Plot Selected Features ---------
+    plt.figure(figsize=(8, 5))
+    plt.plot(generations_range, feature_count_history, marker='o', markersize=3, linewidth=2, color='green')
+    plt.title("Selected Features per Generation")
+    plt.xlabel("Generation")
+    plt.ylabel("Number of Features Selected")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("GA_selected_features_MRI.png", dpi=300, bbox_inches='tight')
+    plt.show()
+```
 3. **Run Cell 4: GA (Parallel) without K-Fold Cross-Validation**:
    - Selects the optimal subset of extracted features using parallel fitness evaluations without K-Fold Cross-Validation.
    - Fits a Gaussian Naive Bayes classifier on the selected training features.
+```python
+import time
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from joblib import Parallel, delayed
+st = time.time()
+# --------- Step 4: Genetic Algorithm (Parallel & Non-K-Fold) ---------
+def genetic_algorithm(X, y, pop_size=100, generations=1000, mutation_rate=0.01, val_size=0.2,n_jobs=-1,random_state=42):
+    np.random.seed(random_state)
+    random.seed(random_state)
+    # Split training set into Train/Validation once for fast GA evaluation
+    X_tr, X_val, y_tr, y_val = train_test_split(
+        X, y, test_size=val_size, stratify=y, random_state=random_state)
+    n_features = X.shape[1]
+    # Initialize random population (Boolean)
+    population = np.random.rand(pop_size, n_features) < 0.5
+    best_history = []
+    avg_history = []
+    feature_count_history = []
+    # Function to calculate fitness on the validation set
+    def evaluate_individual(individual):
+        if not np.any(individual):
+            return 0.0
+        # Train on small Train set, evaluate on Validation set
+        clf = GaussianNB()
+        clf.fit(X_tr[:, individual], y_tr)
+        preds = clf.predict(X_val[:, individual])
+        return float(accuracy_score(y_val, preds))
+    best_individual_overall = None
+    best_fitness_overall = -1.0
+    # Cache memory to avoid recalculating duplicate individuals
+    fitness_cache = {}
+    # Parallel processing manager
+    with Parallel(n_jobs=n_jobs, backend='loky') as parallel:
+        for gen in range(generations):
+            # Check which individuals are already in the cache
+            eval_indices = []
+            tasks = []
+            scores = np.zeros(pop_size, dtype=float)
+            for idx, ind in enumerate(population):
+                key = ind.tobytes()
+                if key in fitness_cache:
+                    scores[idx] = fitness_cache[key]
+                else:
+                    eval_indices.append(idx)
+                    tasks.append(delayed(evaluate_individual)(ind))
+            # Compute fitness in parallel for new individuals
+            if tasks:
+                computed_scores = parallel(tasks)
+                for idx, score in zip(eval_indices, computed_scores):
+                    key = population[idx].tobytes()
+                    fitness_cache[key] = score
+                    scores[idx] = score
+            # Store best & average scores
+            best_idx = np.argmax(scores)
+            best_ind = population[best_idx].copy()
+            best_score = scores[best_idx]
+            avg_score = np.mean(scores)
+            best_history.append(best_score)
+            avg_history.append(avg_score)
+            feature_count_history.append(np.sum(best_ind))
+            # Update overall best individual
+            if best_score > best_fitness_overall:
+                best_fitness_overall = best_score
+                best_individual_overall = best_ind.copy()
+            print(
+                f"Generation {gen+1:03d}/{generations} | "
+                f"Val Acc: {best_score:.4f} | "
+                f"Avg Acc: {avg_score:.4f} | "
+                f"Features: {np.sum(best_ind)}/{n_features}")
+            # --- Select Top 50% best individuals ---
+            sorted_indices = np.argsort(scores)[::-1]
+            survivors = population[sorted_indices[: pop_size // 2]]
+            # --- Crossover & Mutation (Vectorized) ---
+            new_population = list(survivors)
+            while len(new_population) < pop_size:
+                p1_idx, p2_idx = np.random.choice(len(survivors), size=2, replace=False)
+                p1, p2 = survivors[p1_idx], survivors[p2_idx]
+                # Single-point crossover
+                cp = np.random.randint(1, n_features)
+                child = np.concatenate([p1[:cp], p2[cp:]])
+                # Mutation
+                mutation_mask = np.random.rand(n_features) < mutation_rate
+                child = np.logical_xor(child, mutation_mask)
+                new_population.append(child)
+            population = np.array(new_population, dtype=bool)
+    return best_individual_overall, best_fitness_overall, best_history, avg_history, feature_count_history
+# --------- Step 5: Run GA and Test on Independent Test Set ---------
+if __name__ == '__main__':
+    best_individual, best_fitness, best_history, avg_history, feature_count_history = genetic_algorithm(
+        features_train, y_train, pop_size=100, generations=1000, mutation_rate=0.01, val_size=0.2, n_jobs=-1)
+    # Final evaluation on the independent test set
+    clf = GaussianNB()
+    clf.fit(features_train[:, best_individual], y_train)
+    y_pred = clf.predict(features_test[:, best_individual])
+    test_acc = accuracy_score(y_test, y_pred)
+    print(f"\n Best Validation Accuracy from GA: {best_fitness:.4f}")
+    print(f" Test Accuracy: {test_acc:.4f}")
+    print(f" Number of selected features: {np.sum(best_individual)} / {features_train.shape[1]}")
+    end = time.time()
+    print(f"Total Time: {end - st:.2f} seconds")
+```
 ---
 
 ### 📌 Case 2: Fast Experimentation via Feature Cache
@@ -87,12 +410,29 @@ Skip the time-consuming ViT extraction phase by re-loading pre-calculated featur
 1. **Run Cell 2 (Cache Loading)**:
    - Detects the existing `features_MRIbrain.npz` cache file.
    - Loads `features_train`, `features_test`, `y_train`, and `y_test` arrays in seconds.
+```python
+import numpy as np
+# Load feature file
+data = np.load("/kaggle/input/datasets/ViT_features_MRIbrain.npz")
+# Retrieve data
+features_train = data["features_train"]
+features_test = data["features_test"]
+y_train = data["y_train"]
+y_test = data["y_test"]
+# Check
+print("Train features:", features_train.shape)
+print("Test features :", features_test.shape)
+print("Train labels  :", y_train.shape)
+print("Test labels   :", y_test.shape)
+```
 2. **Run Cell 3: GA (Parallel) with K-Fold Cross-Validation**:
    - Selects the optimal subset of extracted features using parallel fitness evaluations with K-Fold Cross-Validation.
    - Fits a Gaussian Naive Bayes classifier on the selected training features.
+   - Run the same code as in Case 1.
 3. **Run Cell 4: GA (Parallel) without K-Fold Cross-Validation**:
    - Selects the optimal subset of extracted features using parallel fitness evaluations without K-Fold Cross-Validation.
    - Fits a Gaussian Naive Bayes classifier on the selected training features.
+   - Run the same code as in Case 1.
 ---
 ### ⚙️ Evaluation Strategies: K-Fold CV vs. Train/Val Split
 
