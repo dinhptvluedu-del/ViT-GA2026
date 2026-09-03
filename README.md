@@ -40,6 +40,11 @@ This repository provides a hybrid machine learning framework designed for medica
 ### 1. Prerequisites
 - Python $\ge 3.10$
 - CUDA-enabled GPU (recommended for fast feature extraction)
+- To run the experiments smoothly, install all required dependencies using the command below:
+
+```bash
+pip install numpy pillow tqdm torch torchvision scikit-learn timm matplotlib seaborn joblib
+```
 
 ### 2. Environment Setup
 Clone the repository and install the required dependencies:
