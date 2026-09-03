@@ -116,26 +116,24 @@ USE_KFOLD = False  # Set to True to enable 5-Fold Stratified CV
 Experimental performance evaluation on the Brain MRI dataset[cite: 1]:
 
 ### 1. Performance Comparison
+### 1. Performance Comparison
 
-**Table.** Performance (mean ± std) and total time comparison of all methods in Application 1 using 5-fold stratified cross-validation.
+*5-fold stratified cross-validation results in Application 1.*
 
-| Method | ACC | Precision | Recall | F1-score | Time (s) | Rank |
-|:---|---:|---:|---:|---:|---:|---:|
-| **Traditional Machine Learning** | | | | | | |
-| **Proposed** | **0.989 ± 0.005** | **0.989 ± 0.006** | **0.989 ± 0.006** | **0.989 ± 0.006** | 283 | **1** |
-| FG - ANN | 0.933 ± 0.006 | 0.931 ± 0.007 | 0.930 ± 0.006 | 0.930 ± 0.006 | 130 | 2 |
-| FG - SVM | 0.923 ± 0.003 | 0.922 ± 0.003 | 0.920 ± 0.003 | 0.921 ± 0.003 | 128 | 3 |
-| FG - Random Forest | 0.916 ± 0.009 | 0.914 ± 0.009 | 0.912 ± 0.010 | 0.912 ± 0.010 | 146 | 4 |
-| FG - Naive Bayes | 0.849 ± 0.010 | 0.844 ± 0.011 | 0.843 ± 0.011 | 0.843 ± 0.011 | 120 | 7 |
-| FG - AdaBoost | 0.814 ± 0.007 | 0.809 ± 0.007 | 0.809 ± 0.007 | 0.808 ± 0.007 | 305 | 9 |
-| FG - Decision Tree | 0.772 ± 0.008 | 0.767 ± 0.009 | 0.764 ± 0.009 | 0.765 ± 0.009 | 127 | 12 |
-| **Deep Learning** | | | | | | |
-| AlexNet | 0.850 ± 0.022 | 0.850 ± 0.018 | 0.850 ± 0.018 | 0.850 ± 0.019 | 2133 | 5 |
-| InceptionV3 | 0.850 ± 0.021 | 0.850 ± 0.023 | 0.850 ± 0.023 | 0.850 ± 0.021 | 2172 | 6 |
-| Inception ResNet V2 | 0.815 ± 0.001 | 0.840 ± 0.003 | 0.815 ± 0.003 | 0.815 ± 0.002 | 1789 | 8 |
-| ResNet50 | 0.801 ± 0.022 | 0.810 ± 0.020 | 0.810 ± 0.017 | 0.810 ± 0.021 | 1639 | 10 |
-| VGG16 | 0.800 ± 0.012 | 0.800 ± 0.010 | 0.800 ± 0.013 | 0.800 ± 0.011 | 2720 | 11 |
-
+| Method | Group | ACC | Precision | Recall | F1-Score | Time (s) | Rank |
+|:---|:---|---:|---:|---:|---:|---:|---:|
+| **Proposed** | **ML** | **0.989 ± .005** | **0.989 ± .006** | **0.989 ± .006** | **0.989 ± .006** | 283 | **1** |
+| FG - ANN | ML | 0.933 ± .006 | 0.931 ± .007 | 0.930 ± .006 | 0.930 ± .006 | 130 | 2 |
+| FG - SVM | ML | 0.923 ± .003 | 0.922 ± .003 | 0.920 ± .003 | 0.921 ± .003 | 128 | 3 |
+| FG - Random Forest | ML | 0.916 ± .009 | 0.914 ± .009 | 0.912 ± .010 | 0.912 ± .010 | 146 | 4 |
+| AlexNet | DL | 0.850 ± .022 | 0.850 ± .018 | 0.850 ± .018 | 0.850 ± .019 | 2133 | 5 |
+| InceptionV3 | DL | 0.850 ± .021 | 0.850 ± .023 | 0.850 ± .023 | 0.850 ± .021 | 2172 | 6 |
+| FG - Naive Bayes | ML | 0.849 ± .010 | 0.844 ± .011 | 0.843 ± .011 | 0.843 ± .011 | 120 | 7 |
+| InceptionResNetV2 | DL | 0.815 ± .001 | 0.840 ± .003 | 0.815 ± .003 | 0.815 ± .002 | 1789 | 8 |
+| FG - AdaBoost | ML | 0.814 ± .007 | 0.809 ± .007 | 0.809 ± .007 | 0.808 ± .007 | 305 | 9 |
+| ResNet50 | DL | 0.801 ± .022 | 0.810 ± .020 | 0.810 ± .017 | 0.810 ± .021 | 1639 | 10 |
+| VGG16 | DL | 0.800 ± .012 | 0.800 ± .010 | 0.800 ± .013 | 0.800 ± .011 | 2720 | 11 |
+| FG - Decision Tree | ML | 0.772 ± .008 | 0.767 ± .009 | 0.764 ± .009 | 0.765 ± .009 | 127 | 12 |
 ### 2. Convergence Plots
 
 Convergence curves and selected feature count trends are automatically generated and saved under `results/figures/`[cite: 1]:
