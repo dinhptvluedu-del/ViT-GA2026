@@ -455,7 +455,6 @@ You can configure the evaluation strategy inside **Cell 2** by setting the `USE_
 USE_KFOLD = 5  # Set to True to enable 5-Fold Stratified CV
 ```
 ---
-
 ## Experimental Results
 
 Experimental performance evaluation on the Brain MRI dataset: 
