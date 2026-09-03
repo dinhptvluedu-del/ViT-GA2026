@@ -599,6 +599,16 @@ plt.show()
 print("Total Time:", time.time() - st)
 ```
 ---
+Deep learning
+
+##  Running the Notebook
+
+To reproduce the deep learning pipeline using the `Deep learning for MRI image dataset.ipynb` notebook:
+
+1. **Environment Setup**: Ensure `tensorflow`, `numpy`, and `scikit-learn` are installed.
+2. **Dataset Path**: Set your dataset directory in the code to point to the MRI dataset (`Training` and `Testing` folders).
+3. **Run Pipeline**: Open `Deep learning for MRI image dataset.ipynb` in Jupyter, Kaggle, or Google Colab, and execute all cells sequentially to run 5-fold cross-validation and evaluate model metrics (Accuracy, Precision, Recall, F1-score).
+---
 ## Experimental Results
 
 Experimental performance evaluation on the Brain MRI dataset: 
