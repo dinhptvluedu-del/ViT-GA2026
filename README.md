@@ -7,6 +7,10 @@ Medical Image Classification Using Genetic Algorithm and Vision Transformer Feat
 
 This repository provides a hybrid machine learning framework designed for medical image classification. The pipeline leverages a pre-trained **Vision Transformer (ViT-Base)** to extract high-dimensional deep features, followed by a multi-core **Parallel Genetic Algorithm (GA)** to perform optimal feature subset selection. The selected feature subset is evaluated using a **Gaussian Naive Bayes** classifier.
 
+| The proposed model
+| :---: 
+| ![The flowchart of the proposed model](ViTGAnew.png)
+
 ---
 
 ## 📌 Key Features
@@ -479,11 +483,11 @@ Experimental performance evaluation on the Brain MRI dataset:
 
 ### 2. Convergence Plots
 
-Convergence curves and selected feature count trends are automatically generated and saved under `results/figures/`[cite: 1]:
+Convergence curves and selected feature count trends are automatically generated and saved as follows:
 
 | Convergence Curve | Selected Features per Generation |
 | :---: | :---: |
-| ![GA Convergence](results/figures/GA_convergence_curve_MRI.png) | ![Selected Features](results/figures/GA_selected_features_MRI.png) |
+| ![GA Convergence](GAMRI-convergence.png) | ![Selected Features](GAFeatures.png) |
 
 ---
 
@@ -492,8 +496,8 @@ Convergence curves and selected feature count trends are automatically generated
 If you find this code or research useful in your work, please cite it as follows:
 
 ```bibtex
-@article{Pham2026ViTGA,
-  author    = {Toan Dinh Pham},
+@article{ViTGA2026,
+  author    = {ViTGA2026},
   title     = {Medical Image Classification Using Genetic Algorithm and Vision Transformer Features},
   journal   = {Neural Computing & Applications (Revsied)},
   year      = {2026}
