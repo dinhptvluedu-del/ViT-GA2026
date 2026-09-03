@@ -455,6 +455,150 @@ You can configure the evaluation strategy inside **Cell 2** by setting the `USE_
 USE_KFOLD = 5  # Set to True to enable 5-Fold Stratified CV
 ```
 ---
+
+Continue with the other machine learning models.
+**AdaBoost**
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import time
+
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+st = time.time()
+# --------- Feature selection using GA ---------
+X_train_selected = features_train[:, best_individual]
+X_test_selected  = features_test[:, best_individual]
+# --------- Train AdaBoost ---------
+# Base learner typically uses a Decision Tree stump (max_depth=1)
+base_est = DecisionTreeClassifier(max_depth=1, random_state=42)
+clf = AdaBoostClassifier(
+    estimator=base_est,     # Use base_estimator= for older sklearn versions
+    n_estimators=300,
+    learning_rate=0.5,
+    algorithm="SAMME.R",    # Change to "SAMME" if version error occurs
+    random_state=42)
+clf.fit(X_train_selected, y_train)
+# --------- Prediction ---------
+y_pred = clf.predict(X_test_selected)
+test_accuracy = accuracy_score(y_test, y_pred)
+print(f"Test accuracy using selected features (AdaBoost): {test_accuracy:.4f}")
+# --------- Plot error vs. number of estimators (similar to 'epochs') ---------
+train_err = []
+test_err = []
+for yhat_tr in clf.staged_predict(X_train_selected):
+    train_err.append(1 - accuracy_score(y_train, yhat_tr))
+for yhat_te in clf.staged_predict(X_test_selected):
+    test_err.append(1 - accuracy_score(y_test, yhat_te))
+x_axis = range(1, len(train_err) + 1)
+plt.figure(figsize=(7, 5))
+plt.plot(x_axis, train_err, label="Train error")
+plt.plot(x_axis, test_err, label="Test error")
+plt.xlabel("Number of Estimators")
+plt.ylabel("Error (1 - accuracy)")
+plt.title("AdaBoost Error over Number of Estimators")
+plt.legend()
+plt.grid(True)
+plt.savefig("AdaBoost_error.png")
+plt.show()
+# --------- Confusion Matrix ---------
+cm = confusion_matrix(y_test, y_pred)
+classes = np.unique(y_test)
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+            xticklabels=classes, yticklabels=classes)
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.title("Confusion Matrix (AdaBoost with GA features)")
+plt.savefig("CM_AdaBoost.png")
+plt.show()
+# --------- Classification Report ---------
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+end = time.time()
+print("Total Time:", end - st)
+```
+**Decision Tree**
+```python
+import time
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.tree import DecisionTreeClassifier
+st = time.time()
+# Feature selection via GA
+X_train_selected = features_train[:, best_individual]
+X_test_selected = features_test[:, best_individual]
+# Train Decision Tree
+clf = DecisionTreeClassifier(
+    criterion="gini",
+    max_depth=None,
+    min_samples_split=2,
+    min_samples_leaf=1,
+    random_state=42,)
+clf.fit(X_train_selected, y_train)
+# Evaluate
+y_pred = clf.predict(X_test_selected)
+print(f"Test accuracy: {accuracy_score(y_test, y_pred):.4f}\n")
+print("Classification Report:\n", classification_report(y_test, y_pred))
+# Plot Confusion Matrix
+classes = np.unique(y_test)
+plt.figure(figsize=(6, 5))
+sns.heatmap(
+    confusion_matrix(y_test, y_pred),
+    annot=True,
+    fmt="d",
+    cmap="Blues",
+    xticklabels=classes,
+    yticklabels=classes,)
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.title("Confusion Matrix (Decision Tree with GA features)")
+plt.savefig("CM_DT.png")
+plt.show()
+print("Total Time:", time.time() - st)
+```
+**Gaussian Naive Bayes**
+
+```python
+import time
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.naive_bayes import GaussianNB
+st = time.time()
+# Feature selection via GA
+X_train_selected = features_train[:, best_individual]
+X_test_selected = features_test[:, best_individual]
+# Train Gaussian Naive Bayes
+clf = GaussianNB()
+clf.fit(X_train_selected, y_train)
+# Evaluate
+y_pred = clf.predict(X_test_selected)
+print(f"Test accuracy: {accuracy_score(y_test, y_pred):.4f}\n")
+print("Classification Report:\n", classification_report(y_test, y_pred))
+# Plot Confusion Matrix
+classes = np.unique(y_test)
+plt.figure(figsize=(6, 5))
+sns.heatmap(
+    confusion_matrix(y_test, y_pred),
+    annot=True,
+    fmt="d",
+    cmap="Blues",
+    xticklabels=classes,
+    yticklabels=classes,)
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.title("Confusion Matrix (GaussianNB with GA features)")
+plt.savefig("CM_GNB.png")
+plt.show()
+print("Total Time:", time.time() - st)
+```
+---
 ## Experimental Results
 
 Experimental performance evaluation on the Brain MRI dataset: 
