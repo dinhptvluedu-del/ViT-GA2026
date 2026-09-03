@@ -108,17 +108,34 @@ You can configure the evaluation strategy inside **Cell 2** by setting the `USE_
 
 ```python
 # Configure in Cell 2:
-USE_KFOLD = False  # Set to True to enable 5-Fold Stratified CV
+USE_KFOLD = 5  # Set to True to enable 5-Fold Stratified CV
+```
 ---
 
 ## Experimental Results
 
-Experimental performance evaluation on the Brain MRI dataset[cite: 1]:
-
+Experimental performance evaluation on the Brain MRI dataset: 
 
 ### 1. Performance Comparison
 
 *Performance (mean ± std) and total time comparison of all methods in Application 1 using 5-fold stratified cross-validation.*
+
+| Method | ACC | Precision | Recall | F1-score | Time (s) | Rank |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| **Proposed** | **0.989 ± 0.005** | **0.989 ± 0.006** | **0.989 ± 0.006** | **0.989 ± 0.006** | **283** | **1** |
+| **Traditional Machine Learning** | &nbsp; | &nbsp; | &nbsp; | &nbsp; | &nbsp; | &nbsp; |
+| FG - ANN | 0.933 ± 0.006 | 0.931 ± 0.007 | 0.930 ± 0.006 | 0.930 ± 0.006 | 130 | 2 |
+| FG - SVM | 0.923 ± 0.003 | 0.922 ± 0.003 | 0.920 ± 0.003 | 0.921 ± 0.003 | 128 | 3 |
+| FG - Random Forest | 0.916 ± 0.009 | 0.914 ± 0.009 | 0.912 ± 0.010 | 0.912 ± 0.010 | 146 | 4 |
+| FG - Naive Bayes | 0.849 ± 0.010 | 0.844 ± 0.011 | 0.843 ± 0.011 | 0.843 ± 0.011 | 120 | 7 |
+| FG - AdaBoost | 0.814 ± 0.007 | 0.809 ± 0.007 | 0.809 ± 0.007 | 0.808 ± 0.007 | 305 | 9 |
+| FG - Decision Tree | 0.772 ± 0.008 | 0.767 ± 0.009 | 0.764 ± 0.009 | 0.765 ± 0.009 | 127 | 12 |
+| **Deep Learning** | &nbsp; | &nbsp; | &nbsp; | &nbsp; | &nbsp; | &nbsp; |
+| AlexNet | 0.850 ± 0.022 | 0.850 ± 0.018 | 0.850 ± 0.018 | 0.850 ± 0.019 | 2133 | 5 |
+| InceptionV3 | 0.850 ± 0.021 | 0.850 ± 0.023 | 0.850 ± 0.023 | 0.850 ± 0.021 | 2172 | 6 |
+| Inception ResNet V2 | 0.815 ± 0.001 | 0.840 ± 0.003 | 0.815 ± 0.003 | 0.815 ± 0.002 | 1789 | 8 |
+| ResNet50 | 0.801 ± 0.022 | 0.810 ± 0.020 | 0.810 ± 0.017 | 0.810 ± 0.021 | 1639 | 10 |
+| VGG16 | 0.800 ± 0.012 | 0.800 ± 0.010 | 0.800 ± 0.013 | 0.800 ± 0.011 | 2720 | 11 |
 
 ### 2. Convergence Plots
 
